@@ -6,8 +6,8 @@ setup:
 	$(RUNNER) pre-commit install
 
 lint:
-	$(RUNNER) ruff check $(FILES) --fix
-	$(RUNNER) ruff format $(FILES) --diff --fix
+	$(RUNNER) ruff check $(FILES)
+	$(RUNNER) ruff format $(FILES) --diff
 
 save-bestiaries:
 	$(RUNNER) python dataset/save_preprocessed_bestiaries.py

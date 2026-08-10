@@ -128,55 +128,55 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
         case "linear_regression_ridge":
             model = create_min_max_pipeline(RidgeCV(alphas=np.linspace(1e-3, 1, 10000)))
         case "lad_regression":
-            hyper_params = [{"alpha": np.linspace(0.0, 1e-3, 100)}]
+            hyper_params = [{"model__alpha": np.linspace(0.0, 1e-3, 100)}]
 
             reg_lad = QuantileRegressor(quantile=0.5, solver="highs")
 
             model = create_grid_search(reg_lad, hyper_params)
         case "huber_regression":
             huber = HuberRegressor(max_iter=1000)
-            hyper_params = {"alpha": np.linspace(1e-3, 1, 1000)}
+            hyper_params = {"model__alpha": np.linspace(1e-3, 1, 1000)}
 
             model = create_grid_search(huber, hyper_params)
         case "linear_svm":
             clf_linear_svr = LinearSVR(
                 loss="epsilon_insensitive", max_iter=10000, random_state=0
             )
-            hyper_params = {"C": np.linspace(10, 30, num=20)}
+            hyper_params = {"model__C": np.linspace(10, 30, num=20)}
 
             model = create_grid_search(clf_linear_svr, hyper_params)
         case "kernel_svm":
             svm = SVR(kernel="rbf", max_iter=10000)
-            hyper_params = {"C": np.linspace(1, 10, num=100)}
+            hyper_params = {"model__C": np.linspace(1, 10, num=100)}
 
             model = create_grid_search(svm, hyper_params)
         case "knn":
             knn = KNeighborsRegressor()
 
             hyper_params = {
-                "leaf_size": list(range(50, 100, 10)),
-                "weights": ["uniform", "distance"],
-                "metric": ["minkowski", "manhattan", "euclidean"],
-                "n_neighbors": [1, 3],
+                "model__leaf_size": list(range(50, 100, 10)),
+                "model__weights": ["uniform", "distance"],
+                "model__metric": ["minkowski", "manhattan", "euclidean"],
+                "model__n_neighbors": [1, 3],
             }
 
             model = create_grid_search(knn, hyper_params)
         case "random_forest":
             rf = RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=-1)
             hyper_params = {
-                "max_features": ["sqrt", 0.3],
-                "n_estimators": [100, 200, 500],
-                "criterion": ["squared_error", "absolute_error", "friedman_mse"],
+                "model__max_features": ["sqrt", 0.3],
+                "model__n_estimators": [100, 200, 500],
+                "model__criterion": ["squared_error", "absolute_error", "friedman_mse"],
             }
             model = create_grid_search(rf, hyper_params)
         case "ordered_random_forest":
             rf = OrderedForest(random_state=RANDOM_STATE, n_jobs=-1)
             hyper_params = {
-                "max_features": [0.3],
-                "min_samples_leaf": [i for i in range(2, 8)],
-                "n_estimators": [100, 200, 500],
-                "honesty": [False],
-                "replace": [True],
+                "model__max_features": [0.3],
+                "model__min_samples_leaf": [i for i in range(2, 8)],
+                "model__n_estimators": [100, 200, 500],
+                "model__honesty": [False],
+                "model__replace": [True],
             }
             model = create_grid_search(
                 rf,
@@ -184,13 +184,13 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
                 scoring=make_scorer(orf_mean_absolute_error, greater_is_better=False),
             )
         case "logisticAT":
-            hyper_params = [{"alpha": np.linspace(0.0, 1e-3, 100)}]
+            hyper_params = [{"model__alpha": np.linspace(0.0, 1e-3, 100)}]
 
             logistic_model = LogisticAT()
 
             model = create_grid_search(logistic_model, hyper_params)
         case "logisticIT":
-            hyper_params = [{"alpha": np.linspace(0.0, 1e-3, 100)}]
+            hyper_params = [{"model__alpha": np.linspace(0.0, 1e-3, 100)}]
 
             logistic_model = LogisticIT()
 
@@ -201,9 +201,9 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             model = create_linear_ordinal_model("logit")
         case "simple_or":
             hyper_params = {
-                "max_features": ["sqrt", 0.3],
-                "n_estimators": [100, 200, 500],
-                "criterion": ["gini", "entropy"],
+                "model__max_features": ["sqrt", 0.3],
+                "model__n_estimators": [100, 200, 500],
+                "model__criterion": ["gini", "entropy"],
             }
             model = create_grid_search(
                 SimpleOrdinalClassification(),
@@ -211,8 +211,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "gpor":
             hyper_params = {
-                "maxiter": [100],
-                "kernel": [gpflow.kernels.ArcCosine()],
+                "model__maxiter": [100],
+                "model__kernel": [gpflow.kernels.ArcCosine()],
             }
             model = create_grid_search(
                 GPOR(),
@@ -220,8 +220,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "coral":
             hyper_params = {
-                "optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
-                "lr": [1e-3, 1e-2, 1e-1],
+                "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
+                "model__lr": [1e-3, 1e-2, 1e-1],
             }
             model = create_grid_search(
                 SkorchCORAL(
@@ -238,8 +238,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "corn":
             hyper_params = {
-                "optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
-                "lr": [1e-3, 1e-2, 1e-1],
+                "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
+                "model__lr": [1e-3, 1e-2, 1e-1],
             }
             model = create_grid_search(
                 SkorchCORN(
@@ -257,8 +257,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "clm":
             hyper_params = {
-                "lr": [1e-3, 1e-2, 1e-1],
-                "optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
+                "model__lr": [1e-3, 1e-2, 1e-1],
+                "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
             }
             predictor = get_spacecutter_predictor(n_features)
 
@@ -288,8 +288,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "nn_rank":
             hyper_params = {
-                "optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
-                "optimizer__lr": [1e-3, 1e-2, 1e-1],
+                "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
+                "model__optimizer__lr": [1e-3, 1e-2, 1e-1],
             }
             model = create_grid_search(
                 NeuralNetNNRank(
@@ -304,8 +304,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "condor":
             hyper_params = {
-                "optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
-                "optimizer__lr": [1e-3, 1e-2, 1e-1],
+                "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
+                "model__optimizer__lr": [1e-3, 1e-2, 1e-1],
             }
             model = create_grid_search(
                 CondorNeuralNet(
@@ -320,8 +320,8 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             )
         case "or_cnn":
             hyper_params = {
-                "optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
-                "optimizer__lr": [1e-3, 1e-2, 1e-1],
+                "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
+                "model__optimizer__lr": [1e-3, 1e-2, 1e-1],
             }
             model = create_grid_search(
                 NeuralNetORCNN(
@@ -344,7 +344,7 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
 def lightgbm_objective(
     trial: Trial,
     X_train: pd.DataFrame,
-    y_train: pd.Series,
+    y_train: np.ndarray,
     folds: list[Fold],
 ):
     params = {
@@ -401,8 +401,8 @@ def lightgbm_objective(
         X_fold_train = X_train.iloc[train_idx]
         X_fold_valid = X_train.iloc[valid_idx]
 
-        y_fold_train = y_train.iloc[train_idx]
-        y_fold_valid = y_train.iloc[valid_idx]
+        y_fold_train = y_train[train_idx]
+        y_fold_valid = y_train[valid_idx]
 
         scaler = MinMaxScaler()
 
@@ -454,7 +454,6 @@ def lightgbm_fit(X_train, y_train) -> lightgbm.Booster:
     :return: trained lightgbm
     """
     X_train = X_train.reset_index(drop=True)
-    y_train = y_train.reset_index(drop=True)
 
     folds = list(
         KFold(
@@ -501,7 +500,7 @@ def lightgbm_fit(X_train, y_train) -> lightgbm.Booster:
 
 def create_linear_ordinal_model(distr: str) -> GridSearchCV:
     model = LinearOrdinalModel(distr=distr)
-    hyper_params = {"offset": np.linspace(0.25, 1.25, 11)}
+    hyper_params = {"model__offset": np.linspace(0.25, 1.25, 11)}
     model = create_grid_search(model, hyper_params)
 
     return model
