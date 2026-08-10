@@ -15,7 +15,6 @@ from training.constants import (  # noqa: E402
     PATH_TO_DATASET_PATTERN,
     RANDOM_PREFIX,
     RESULT_PATTERN,
-    SET_COMPARISION_MODELS,
     SET_NAME,
 )  # noqa: E402
 # from training.train_and_evaluate_models import train_and_evaluate_models  # noqa: E402
@@ -51,7 +50,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     set_names = set(args.sets) or {SET_NAME}
-    models_to_use = SET_COMPARISION_MODELS if args.sets_comparision else ALL_MODELS
+    models_to_use = ALL_MODELS
 
     chronological_split = False if args.random else CHRONOLOGICAL_SPLIT
 
