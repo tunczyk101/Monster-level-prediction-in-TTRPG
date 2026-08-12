@@ -1,15 +1,15 @@
 from typing import Any, Callable
 
 import gpflow
-import lightgbm as lightgbm
+from lightgbm import Booster, Dataset, early_stopping, log_evaluation
+import lightgbm
 import numpy as np
-from optuna import Trial, create_study
+import optuna.integration.lightgbm as opt_lgb
 import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from mord import LogisticAT, LogisticIT
-from orf import OrderedForest
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import (
     HuberRegressor,
@@ -42,28 +42,22 @@ from training.models.gpor import GPOR
 from training.models.nn_rank import NeuralNetNNRank, NNRank
 from training.models.or_cnn import ORCNN, NeuralNetORCNN
 from training.models.ordered_models import LinearOrdinalModel
+from training.models.ordered_random_forest import OrderedRandomForest
+from training.models.scaled_lightgbm import ScaledBooster
 from training.models.simple_ordinal_classification import SimpleOrdinalClassification
 from training.models.clm.losses import CumulativeLinkLoss
 from training.models.clm.models import (
-    SpacecutterGridSearchCV,
-    get_spacecutter_predictor,
+    CLMGridSearchCV,
+    get_clm_predictor,
 )
 from training.score_functions import (
-    orf_mean_absolute_error,
-    spacecutter_mean_absolute_error,
+    clm_mean_absolute_error,
 )
 
-BASE_LIGHTGBM_PARAMS = {
-    "boosting_type": "gbdt",
-    "objective": "regression",
-    "metric": "l2",
-    "verbosity": -1,
-    "n_jobs": -1,
-    "seed": RANDOM_STATE,
-}
+FoldEntry = dict[str, np.ndarray | MinMaxScaler]
+FoldLookup = dict[tuple[int, ...], FoldEntry]
 
 ModelType = RidgeCV | GridSearchCV | lightgbm.Booster | OrderedModel
-Fold = tuple[np.ndarray, np.ndarray]
 
 
 def get_fitted_model(
@@ -170,7 +164,7 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             }
             model = create_grid_search(rf, hyper_params)
         case "ordered_random_forest":
-            rf = OrderedForest(random_state=RANDOM_STATE, n_jobs=-1)
+            rf = OrderedRandomForest(random_state=RANDOM_STATE, n_jobs=-1)
             hyper_params = {
                 "model__max_features": [0.3],
                 "model__min_samples_leaf": [i for i in range(2, 8)],
@@ -181,7 +175,6 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             model = create_grid_search(
                 rf,
                 hyper_params,
-                scoring=make_scorer(orf_mean_absolute_error, greater_is_better=False),
             )
         case "logisticAT":
             hyper_params = [{"model__alpha": np.linspace(0.0, 1e-3, 100)}]
@@ -260,7 +253,7 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
                 "model__lr": [1e-3, 1e-2, 1e-1],
                 "model__optimizer__weight_decay": [1e-3, 1e-2, 1e-1, 1],
             }
-            predictor = get_spacecutter_predictor(n_features)
+            predictor = get_clm_predictor(n_features)
 
             estimator = NeuralNet(
                 module=OrdinalLogisticModel,
@@ -275,11 +268,11 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
                 ],
             )
 
-            model = SpacecutterGridSearchCV(
+            model = CLMGridSearchCV(
                 estimator=create_min_max_pipeline(estimator),
                 param_grid=hyper_params,
                 scoring=make_scorer(
-                    spacecutter_mean_absolute_error,
+                    clm_mean_absolute_error,
                     greater_is_better=False,
                     needs_proba=True,
                 ),
@@ -341,161 +334,101 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
     return model
 
 
-def lightgbm_objective(
-    trial: Trial,
-    X_train: pd.DataFrame,
-    y_train: np.ndarray,
-    folds: list[Fold],
-):
-    params = {
-        **BASE_LIGHTGBM_PARAMS,
-        # Keep the parameters that Optuna tunes.
-        "learning_rate": trial.suggest_float(
-            "learning_rate",
-            1e-3,
-            0.2,
-            log=True,
-        ),
-        "num_leaves": trial.suggest_int(
-            "num_leaves",
-            10,
-            200,
-        ),
-        "max_depth": trial.suggest_int(
-            "max_depth",
-            3,
-            15,
-        ),
-        "min_child_samples": trial.suggest_int(
-            "min_child_samples",
-            5,
-            100,
-        ),
-        "subsample": trial.suggest_float(
-            "subsample",
-            0.5,
-            1.0,
-        ),
-        "colsample_bytree": trial.suggest_float(
-            "colsample_bytree",
-            0.5,
-            1.0,
-        ),
-        "reg_alpha": trial.suggest_float(
-            "reg_alpha",
-            1e-8,
-            10.0,
-            log=True,
-        ),
-        "reg_lambda": trial.suggest_float(
-            "reg_lambda",
-            1e-8,
-            10.0,
-            log=True,
-        ),
-    }
+def _precompute_folds(X: np.ndarray, y: np.ndarray, kf: KFold) -> FoldLookup:
+    """
+    Fit MinMaxScaler once per fold on the train split, transform both splits.
+    """
+    fold_lookup: FoldLookup = {}
 
-    fold_scores = []
-
-    for train_idx, valid_idx in folds:
-        X_fold_train = X_train.iloc[train_idx]
-        X_fold_valid = X_train.iloc[valid_idx]
-
-        y_fold_train = y_train[train_idx]
-        y_fold_valid = y_train[valid_idx]
-
+    for train_idx, val_idx in kf.split(X):
         scaler = MinMaxScaler()
+        X_tr = scaler.fit_transform(X[train_idx])
+        X_va = scaler.transform(X[val_idx])
+        # Key by the validation indices — they uniquely identify each fold
+        key = tuple(sorted(val_idx))
 
-        X_fold_train_scaled = scaler.fit_transform(X_fold_train)
+        fold_lookup[key] = {
+            "X_tr": X_tr,
+            "y_tr": y[train_idx],
+            "X_va": X_va,
+            "y_va": y[val_idx],
+            "scaler": scaler,
+        }
+    return fold_lookup
 
-        X_fold_valid_scaled = scaler.transform(X_fold_valid)
 
-        lgb_train = lightgbm.Dataset(
-            X_fold_train_scaled,
-            label=y_fold_train,
+def _make_fpreproc(
+    fold_lookup: FoldLookup,
+) -> Callable[
+    [Dataset, Dataset, dict[str, Any]], tuple[Dataset, Dataset, dict[str, Any]]
+]:
+    """Return an fpreproc closure that looks up pre-scaled arrays instead of
+    recomputing the scaler on every trial.
+
+    fpreproc is called by cv -> _make_n_folds once per fold per trial.
+    Without this approach the scaler would be re-fitted ~340 times on identical
+    data across all LightGBMTunerCV stages (7+20+10+6+20+5 trials × 5 folds).
+    Here it is fitted exactly 5 times — once during _precompute_folds.
+    """
+
+    def fpreproc(
+        train_set: Dataset, valid_set: Dataset, params: dict[str, Any]
+    ) -> tuple[Dataset, Dataset, dict[str, Any]]:
+        # Identify which pre-scaled fold this is via validation indices
+        val_key = tuple(valid_set.used_indices)
+        fold = fold_lookup[val_key]
+
+        new_train = Dataset(fold["X_tr"], label=fold["y_tr"], free_raw_data=False)
+        new_valid = Dataset(
+            fold["X_va"], label=fold["y_va"], reference=new_train, free_raw_data=False
         )
+        return new_train, new_valid, params
 
-        lgb_valid = lightgbm.Dataset(
-            X_fold_valid_scaled,
-            label=y_fold_valid,
-            reference=lgb_train,
-        )
-
-        model = lightgbm.train(
-            params,
-            lgb_train,
-            num_boost_round=10000,
-            valid_sets=[lgb_valid],
-            callbacks=[
-                lightgbm.early_stopping(
-                    100,
-                    verbose=False,
-                ),
-            ],
-        )
-
-        predictions = model.predict(
-            X_fold_valid_scaled,
-            num_iteration=model.best_iteration,
-        )
-
-        mae = np.mean(np.abs(y_fold_valid.to_numpy() - predictions))
-
-        fold_scores.append(mae)
-
-    return float(np.mean(fold_scores))
+    return fpreproc
 
 
-def lightgbm_fit(X_train, y_train) -> lightgbm.Booster:
+def lightgbm_fit(X_train, y_train) -> Booster:
     """
     Performs tuning and fits lightgbm model\n
     :param X_train: train set with features to use during fitting
     :param y_train: train set with values to predict
     :return: trained lightgbm
     """
-    X_train = X_train.reset_index(drop=True)
+    X = np.asarray(X_train)
+    y = np.asarray(y_train)
 
-    folds = list(
-        KFold(
-            n_splits=5,
-        ).split(X_train)
-    )
+    kf = KFold(n_splits=5)
 
-    study = create_study(
-        direction="minimize",
-    )
-    study.optimize(
-        lambda trial: lightgbm_objective(
-            trial,
-            X_train,
-            y_train,
-            folds,
-        ),
-        n_trials=50,
-    )
+    fold_lookup = _precompute_folds(X, y, kf)
 
-    best_params = study.best_params
-
-    scaler = MinMaxScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    lgb_train = lightgbm.Dataset(
-        X_train_scaled,
-        label=y_train,
-    )
-
-    final_params = {
-        **BASE_LIGHTGBM_PARAMS,
-        **best_params,
+    lgb_train = opt_lgb.Dataset(X_train, y_train, free_raw_data=False)
+    params = {
+        "boosting_type": "gbdt",
+        "objective": "regression",
+        "metric": "l2",
+        "verbosity": -1,
     }
+    tuner = opt_lgb.LightGBMTunerCV(
+        params,
+        lgb_train,
+        folds=KFold(n_splits=5),
+        num_boost_round=10000,
+        fpreproc=_make_fpreproc(fold_lookup),
+        callbacks=[early_stopping(100), log_evaluation(100)],
+    )
+    tuner.run()
+    best_params = tuner.best_params
+
+    final_scaler = MinMaxScaler()
+    X_scaled = final_scaler.fit_transform(X)
+    lgb_train_scaled = Dataset(X_scaled, y)
 
     lgb_tuned = lightgbm.train(
-        final_params,
-        lgb_train,
+        best_params,
+        lgb_train_scaled,
         num_boost_round=10000,
     )
-    lgb_tuned.scaler = scaler
-
-    return lgb_tuned
+    return ScaledBooster(lgb_tuned, final_scaler)
 
 
 def create_linear_ordinal_model(distr: str) -> GridSearchCV:

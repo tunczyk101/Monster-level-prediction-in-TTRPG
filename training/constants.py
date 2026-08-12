@@ -10,6 +10,7 @@ MAX_LVL = 22
 SET_NAME = "full"
 CHRONOLOGICAL_SPLIT = True
 
+ROUNDING = "mathematical"
 RESULTS_DIR = os.path.join("training", "results")
 PATH_TO_DATASET_PATTERN = os.path.join(
     "preprocessed_bestiaries", "bestiaries_{set_name}.csv"

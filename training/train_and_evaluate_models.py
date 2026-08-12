@@ -12,7 +12,6 @@ from metrics import (
     rmse_macroaveraged,
     somers_d,
 )
-from orf import OrderedForest
 from pandas import DataFrame, MultiIndex
 from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
 from sklearn.model_selection import GridSearchCV
@@ -28,10 +27,6 @@ from training.constants import (
 )
 from training.create_model import ModelType, get_fitted_model
 from training.rounding import (
-    find_best_thresholds,
-    find_graph_rounding,
-    find_single_best_threshold,
-    round_results_multiple_threshold,
     round_single_threshold_results,
 )
 
@@ -60,10 +55,6 @@ def calculate_results(y_true, y_pred, include_accuracy=True) -> list[float]:
     """
     Calculates evaluation metrics for predicted values compared to true values.
 
-    :param y_true: List of true values
-    :param y_pred: List of predicted values
-    :param include_accuracy: Whether to compute the accuracy score.
-    :return: List containing evaluation metrics. If accuracy was not computed the last element equals None.
     """
     results = [
         root_mean_squared_error(y_true, y_pred),
@@ -82,27 +73,9 @@ def calculate_results(y_true, y_pred, include_accuracy=True) -> list[float]:
     return results
 
 
-def get_index(thresholds: list[tuple[float, float]]):
-    """
-    Create a pandas MultiIndex based on provided thresholds.
-
-    :param thresholds: A list of tuples, where each tuple contains two float values representing the start
-                        and end of a threshold range.
-    :return: A MultiIndex object with headers for no rounded results, classic (0.5) rounding
-                and for each given threshold pair round for single_threshold, multiple_threshold, graph_threshold.
-                For each rounding type there is returned a group metrices.
-    """
+def get_index():
     iterables = [
-        ["no_rounding", "round 0.5"]
-        + [
-            f"{label}{threshold_start:.2f}_{threshold_end:.2f}"
-            for threshold_start, threshold_end in thresholds
-            for label in [
-                "best_single_threshold_",
-                "best_multiple_thresholds_",
-                "best_graph_thresholds_",
-            ]
-        ],
+        ["no_rounding", "mathematical"],
         [
             "rmse",
             "rmse_macroaveraged",
@@ -114,9 +87,7 @@ def get_index(thresholds: list[tuple[float, float]]):
             "accuracy1",
         ],
     ]
-    return pd.MultiIndex.from_product(
-        iterables, names=["round type + metrics", "model"]
-    )
+    return pd.MultiIndex.from_product(iterables, names=["metrics", "model"])
 
 
 def is_ordinal_model(model_name) -> bool:
@@ -130,22 +101,15 @@ def is_ordinal_model(model_name) -> bool:
 
 
 def calculate_all_results_types(
-    y_train, y_pred_train, y_test, y_pred_test, thresholds, model_name: str
+    y_train, y_pred_train, y_test, y_pred_test, model_name: str
 ) -> tuple[list, list]:
     """
     Calculates evaluation metrics for predicted values compared to true values
-    for all types of rounding (no, 0.5, single, multiple, graph)
-
-    :param y_train: List of true train values
-    :param y_pred_train: List of predicted train values
-    :param y_test: List of true test values
-    :param y_pred_test: List of predicted test values
-    :param thresholds: List of thresholds
-    :return: List containing evaluation metrics.
+    for continous and rounded results.
     """
     if is_ordinal_model(model_name):
-        # number of possible rounding types for regression models
-        n = 2 + 3 * len(thresholds)
+        # rounding not needed, copy paste not rounded results
+        n = 2
         train_results = n * calculate_results(y_train, y_pred_train)
         test_results = n * calculate_results(y_test, y_pred_test)
 
@@ -163,54 +127,6 @@ def calculate_all_results_types(
         y_test, round_single_threshold_results(y_pred_test, threshold=0.5)
     )
 
-    for threshold_list in thresholds:
-        min_threshold = min(threshold_list)
-        max_threshold = max(threshold_list)
-
-        best_single_threshold = find_single_best_threshold(
-            y_pred_train, y_train, threshold_list
-        )
-
-        train_results_single_threshold = calculate_results(
-            y_train,
-            round_single_threshold_results(y_pred_train, best_single_threshold),
-        )
-        test_results_single_threshold = calculate_results(
-            y_test,
-            round_single_threshold_results(y_pred_test, best_single_threshold),
-        )
-
-        train_results += train_results_single_threshold
-        test_results += test_results_single_threshold
-
-        best_thresholds = find_best_thresholds(
-            list(y_pred_train),
-            list(y_train),
-            thresholds=(min_threshold, max_threshold),
-        )
-
-        train_results_multiple_threshold = calculate_results(
-            y_train, round_results_multiple_threshold(y_pred_train, best_thresholds)
-        )
-        test_results_multiple_threshold = calculate_results(
-            y_test, round_results_multiple_threshold(y_pred_test, best_thresholds)
-        )
-
-        train_results += train_results_multiple_threshold
-        test_results += test_results_multiple_threshold
-
-        best_thresholds = find_graph_rounding(y_pred_train, y_train, threshold_list)
-
-        train_results_graph = calculate_results(
-            y_train, round_results_multiple_threshold(y_pred_train, best_thresholds)
-        )
-        test_results_graph = calculate_results(
-            y_test, round_results_multiple_threshold(y_pred_test, best_thresholds)
-        )
-
-        train_results += train_results_graph
-        test_results += test_results_graph
-
     return train_results, test_results
 
 
@@ -220,22 +136,13 @@ def get_model_results(
     X_train,
     y_test,
     X_test,
-    thresholds,
     model_name="",
     results_dir: str = MODELS_RESULTS_DIR,
     chronological: bool = True,
     set_name: str = "full",
-) -> (list[float], list[float]):
+) -> tuple[list[float], list[float]]:
     """
     Calculates and compares evaluation metrics for different rounding strategies based on a machine learning model.
-
-    :param model: Model to evaluate
-    :param y_train: True target values for the training set
-    :param X_train: Feature matrix for the training set
-    :param y_test: True target values for the test set
-    :param X_test: Feature matrix for the test set
-    :param thresholds: List of threshold values to consider for rounding=
-    :return: Two lists containing evaluation metrics for different rounding strategies
     """
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -243,17 +150,6 @@ def get_model_results(
     if isinstance(model, OrderedResultsWrapper):
         y_pred_train = model.predict(X_train).idxmax(axis=1).to_numpy()
         y_pred_test = model.predict(X_test).idxmax(axis=1).to_numpy()
-    elif isinstance(model, GridSearchCV) and isinstance(
-        model.best_estimator_, OrderedForest
-    ):
-        y_pred_train = (
-            pd.DataFrame(model.predict(X_train)["predictions"])
-            .idxmax(axis=1)
-            .to_numpy()
-        )
-        y_pred_test = (
-            pd.DataFrame(model.predict(X_test)["predictions"]).idxmax(axis=1).to_numpy()
-        )
     else:
         y_pred_train = np.array(model.predict(X_train))
         y_pred_test = np.array(model.predict(X_test))
@@ -276,7 +172,7 @@ def get_model_results(
     )
 
     return calculate_all_results_types(
-        y_train, y_pred_train, y_test, y_pred_test, thresholds, model_name
+        y_train, y_pred_train, y_test, y_pred_test, model_name
     )
 
 
@@ -285,7 +181,7 @@ def save_loss_curves(
 ) -> None:
     if model_name in NEURAL_NETWORK_MODELS and isinstance(model, GridSearchCV):
         try:
-            history = pd.DataFrame(model.best_estimator_.history)
+            history = pd.DataFrame(model.best_estimator_["model"].history)
             history = history.drop(columns=["batches"])
             history.to_csv(
                 os.path.join(
@@ -305,27 +201,17 @@ def train_and_evaluate_models(
     y_train: pd.Series,
     X_test: pd.DataFrame,
     y_test: pd.Series,
-    thresholds: list[list[float]],
     save_files: tuple[str, str],
     chronological: bool = True,
     set_name: str = "full",
 ) -> tuple[DataFrame, DataFrame]:
     """
-    Trains and evaluates multiple machine learning models and compares different rounding strategies.
-
-    :param models: List of model names to train and evaluate
-    :param X_train: Feature matrix for the training set
-    :param y_train: True target values for the training set
-    :param X_test: Feature matrix for the test set
-    :param y_test: True target values for the test set
-    :param thresholds: List of threshold values to consider for rounding
-    :return: Pandas DataFrames containing evaluation metrics for each model and rounding strategy.
-                One for test results and another one for train results.
+    Trains and evaluates multiple machine learning models.
     """
     all_train_results = []
     all_test_results = []
     train_results_file, test_results_file = save_files
-    columns = get_index(thresholds=[(min(th), max(th)) for th in thresholds])
+    columns = get_index()
     n_features = X_train.shape[1]
 
     # there are models that require the level to be non-negative
@@ -341,7 +227,6 @@ def train_and_evaluate_models(
             X_train,
             y_test,
             X_test,
-            thresholds,
             model_name=model_name,
             chronological=chronological,
             set_name=set_name,
@@ -350,7 +235,7 @@ def train_and_evaluate_models(
         all_train_results.append(model_train_results)
         all_test_results.append(model_test_results)
 
-        columns = get_index(thresholds=[(min(th), max(th)) for th in thresholds])
+        columns = get_index()
         pd.DataFrame(
             data=all_train_results, index=models[: i + 1], columns=columns
         ).to_csv(train_results_file)
@@ -368,25 +253,15 @@ def calculate_results_from_files(
     models: list[str],
     y_train: pd.Series,
     y_test: pd.Series,
-    thresholds: list[list[float]],
     save_files: tuple[str, str],
 ) -> tuple[DataFrame, DataFrame]:
     """
     Trains and evaluates multiple machine learning models and compares different rounding strategies.
-
-    :param models: List of model names to train and evaluate
-    :param X_train: Feature matrix for the training set
-    :param y_train: True target values for the training set
-    :param X_test: Feature matrix for the test set
-    :param y_test: True target values for the test set
-    :param thresholds: List of threshold values to consider for rounding
-    :return: Pandas DataFrames containing evaluation metrics for each model and rounding strategy.
-                One for test results and another one for train results.
     """
     all_train_results = []
     all_test_results = []
     train_results_file, test_results_file = save_files
-    columns = get_index(thresholds=[(min(th), max(th)) for th in thresholds])
+    columns = get_index()
 
     # there are models that require the level to be non-negative
     y_train += 1
@@ -409,13 +284,13 @@ def calculate_results_from_files(
         )["predictions"].to_numpy()
 
         model_train_results, model_test_results = calculate_all_results_types(
-            y_train, y_pred_train, y_test, y_pred_test, thresholds, model_name
+            y_train, y_pred_train, y_test, y_pred_test, model_name
         )
 
         all_train_results.append(model_train_results)
         all_test_results.append(model_test_results)
 
-        columns = get_index(thresholds=[(min(th), max(th)) for th in thresholds])
+        columns = get_index()
         pd.DataFrame(
             data=all_train_results, index=models[: i + 1], columns=columns
         ).to_csv(train_results_file)

@@ -78,7 +78,7 @@ class OrdinalLogisticModel(nn.Module):
         return self.link(self.predictor(*args, **kwargs))
 
 
-class SpacecutterGridSearchCV(GridSearchCV):
+class CLMGridSearchCV(GridSearchCV):
     def fit(self, X, y=None, **fit_params):
         X_train = X.values.astype(np.float32)
         super().fit(X_train, y, **fit_params)
@@ -92,7 +92,7 @@ class SpacecutterGridSearchCV(GridSearchCV):
         return super().predict_proba(X_test)
 
 
-def get_spacecutter_predictor(input_size: int):
+def get_clm_predictor(input_size: int):
     network = nn.Sequential(
         nn.Linear(input_size, 128),
         nn.ReLU(),

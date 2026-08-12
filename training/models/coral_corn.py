@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 from coral_pytorch.dataset import (
     corn_label_from_logits,
@@ -94,11 +95,17 @@ class SkorchCORAL(NeuralNet):
         return coral_loss(logits, levels.to(DEVICE))
 
     def fit(self, X, y=None, **fit_params):
-        train_dataset = SkorchDataset(X.to_numpy().astype(np.float32), y)
+        if isinstance(X, pd.DataFrame):
+            X = X.to_numpy()
+
+        train_dataset = SkorchDataset(X.astype(np.float32), y)
         super().fit(train_dataset.X, train_dataset.y, **fit_params)
 
     def predict(self, X):
-        features = torch.from_numpy(X.values).float()
+        if isinstance(X, pd.DataFrame):
+            X = X.to_numpy()
+
+        features = torch.from_numpy(X).float()
         features = features.to(DEVICE)
 
         logits, probas = self.module_(features)
@@ -132,6 +139,8 @@ class SkorchCORN(NeuralNet):
 
         if hasattr(X, "to_numpy"):
             X = X.to_numpy().astype(np.float32)
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
 
         y = np.asarray(y, dtype=np.int64)
 
@@ -148,6 +157,8 @@ class SkorchCORN(NeuralNet):
 
         if hasattr(X, "to_numpy"):
             X = X.to_numpy().astype(np.float32)
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
 
         logits = torch.cat(list(self.forward_iter(X, training=False)))
 

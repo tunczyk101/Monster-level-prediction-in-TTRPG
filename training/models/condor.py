@@ -29,12 +29,18 @@ class CondorNeuralNet(NeuralNet):
         if isinstance(X, pd.DataFrame):
             X = X.values.astype(np.float32)
 
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
+
         super().fit(X, y, **fit_params)
         return self
 
     def predict(self, X):
         if isinstance(X, pd.DataFrame):
             X = X.values.astype(np.float32)
+
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
 
         results = super().predict(X)
         return logits_to_label(tensor(results)).numpy()

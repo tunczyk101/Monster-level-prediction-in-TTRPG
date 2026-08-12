@@ -45,8 +45,11 @@ class NeuralNetNNRank(NeuralNet):
 
     def fit(self, X, y=None, **fit_params):
         y_encoded = self.encode_levels(y)
+
         if isinstance(X, pd.DataFrame):
             X = X.values.astype(np.float32)
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
 
         super().fit(X, y_encoded, **fit_params)
         return self
@@ -54,6 +57,9 @@ class NeuralNetNNRank(NeuralNet):
     def predict(self, X) -> np.array:
         if isinstance(X, pd.DataFrame):
             X = X.values.astype(np.float32)
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
+
         results = super().predict(X)[:, 1, :]
 
         return self.decode_levels(results)

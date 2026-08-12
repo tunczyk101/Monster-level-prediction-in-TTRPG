@@ -15,8 +15,7 @@ from training.constants import (
     SET_NAME,
 )
 from training.rounding import (
-    RoundingType,
-    get_rounding_func,
+    round_single_threshold_results,
 )
 
 
@@ -31,17 +30,11 @@ TRAIN_RESULTS_FILE = os.path.join(
 def plot_confusion_matrix(
     y_test_pred: np.ndarray,
     y_test: pd.Series,
-    y_train_pred: np.ndarray,
-    y_train: pd.Series,
-    rounding_strategy: RoundingType,
-    thresholds: list[float],
     model_name: str,
     figsize: tuple[int, int] = (10, 10),
     export: bool = False,
 ) -> None:
-    round_predict = get_rounding_func(
-        rounding_strategy, y_pred=y_train_pred, y_true=y_train, thresholds=thresholds
-    )(y_test_pred)
+    round_predict = round_single_threshold_results(y_test_pred, 0.5)
 
     cm = confusion_matrix(y_test, round_predict)
 
@@ -70,14 +63,14 @@ def plot_confusion_matrix(
         fig.savefig(
             os.path.join(
                 OTHER_PLOTS_FOLDER,
-                f"confusion_matrix_{model_name}_{rounding_strategy.value}.svg",
+                f"confusion_matrix_{model_name}_mathematical.svg",
             ),
             bbox_inches="tight",
         )
         fig.savefig(
             os.path.join(
                 OTHER_PLOTS_FOLDER,
-                f"confusion_matrix_{model_name}_{rounding_strategy.value}.pdf",
+                f"confusion_matrix_{model_name}_mathematical.pdf",
             ),
             bbox_inches="tight",
         )
@@ -103,10 +96,6 @@ if __name__ == "__main__":
     plot_confusion_matrix(
         y_test_pred=y_test_pred,
         y_test=y_test,
-        y_train_pred=y_train_pred,
-        y_train=y_train,
-        rounding_strategy=RoundingType.mathematical,
-        thresholds=[],
         export=True,
         model_name=model_name,
     )

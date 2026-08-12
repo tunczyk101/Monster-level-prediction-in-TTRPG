@@ -49,7 +49,7 @@ train:
 	$(RUNNER) python training/train_all_models.py
 
 train-comparision-sets:
-	$(RUNNER) python training/train_all_models.py --sets basic expanded --sets_comparision
+	$(RUNNER) python training/train_all_models.py --sets basic expanded
 
 train-random:
 	$(RUNNER) python training/train_all_models.py --random --sets_comparision

@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
 from statsmodels.miscmodels.ordinal_model import OrderedModel
 
@@ -23,6 +24,8 @@ class LinearOrdinalModel(BaseEstimator, ClassifierMixin):
         self.distr = distr
 
     def fit(self, X, y=None):
+        self.classes_ = np.sort(np.unique(y))
+
         model = RegularizedOrderedModel(
             exog=X, endog=y, distr=self.distr, offset=self.offset
         )
@@ -31,4 +34,9 @@ class LinearOrdinalModel(BaseEstimator, ClassifierMixin):
         return self
 
     def predict(self, X):
-        return self.model_.predict(X).idxmax(axis=1).to_numpy()
+        probabilities = self.model_.predict(X)
+
+        if isinstance(probabilities, pd.DataFrame):
+            return probabilities.idxmax(axis=1).to_numpy()
+
+        return self.classes_[np.argmax(probabilities, axis=1)]

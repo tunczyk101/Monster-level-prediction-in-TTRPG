@@ -6,13 +6,12 @@ import numpy as np
 import pandas as pd
 
 from results_analysis_and_plots.constants import MODEL_LABEL, OTHER_PLOTS_FOLDER
-from training.constants import RESULTS_DIR, SET_COMPARISION_MODELS
+from training.constants import RESULTS_DIR, ALL_MODELS, ROUNDING
 
 
 def plot_grouped_bars(
     all_df: dict[str, pd.DataFrame],
     models: list[str],
-    rounding="round 0.5",
     metric="mae_macroaveraged",
     bar_width: float = 0.8,
     title: str | None = None,
@@ -20,7 +19,7 @@ def plot_grouped_bars(
     models_results = defaultdict(list)
 
     for df in all_df.values():
-        result = df[(rounding, metric)]
+        result = df[(ROUNDING, metric)]
         for model in models:
             models_results[model].append(result[model])
 
@@ -88,5 +87,5 @@ if __name__ == "__main__":
     plot_grouped_bars(
         all_df,
         title="Set size vs results MAE macroaveraged",
-        models=SET_COMPARISION_MODELS,
+        models=ALL_MODELS,
     )

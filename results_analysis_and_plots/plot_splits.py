@@ -7,13 +7,12 @@ from matplotlib import pyplot as plt
 import ast
 
 from results_analysis_and_plots.constants import MODEL_LABEL, OTHER_PLOTS_FOLDER
-from training.constants import EXPANDING_WINDOW_DIR, SET_COMPARISION_MODELS
+from training.constants import EXPANDING_WINDOW_DIR, ALL_MODELS, ROUNDING
 
 
 def plot_grouped_bars(
     all_df: dict[str, pd.DataFrame],
     models=list[str],
-    rounding="round 0.5",
     metric="mae_macroaveraged",
     bar_width: float = 0.8,
     title: str | None = None,
@@ -21,7 +20,7 @@ def plot_grouped_bars(
     models_results = defaultdict(list)
 
     for set_name, df in all_df.items():
-        result = df[(rounding, metric)]
+        result = df[(ROUNDING, metric)]
         for model in models:
             models_results[set_name].append(result[model])
 
@@ -81,8 +80,8 @@ def _load_expanding_window() -> pd.DataFrame:
     result_df = pd.DataFrame()
 
     for col in df.columns:
-        if "round 0.5" in col[0] and col[1] == "avg":
-            result_df[("round 0.5", ast.literal_eval(col[0])[1])] = df[col]
+        if ROUNDING in col[0] and col[1] == "avg":
+            result_df[(ROUNDING, ast.literal_eval(col[0])[1])] = df[col]
 
     return result_df
 
@@ -106,5 +105,5 @@ if __name__ == "__main__":
     plot_grouped_bars(
         all_df,
         title="Chronological vs random MAE macroaveraged",
-        models=SET_COMPARISION_MODELS,
+        models=ALL_MODELS,
     )

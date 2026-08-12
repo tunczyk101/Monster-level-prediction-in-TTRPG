@@ -40,6 +40,9 @@ class NeuralNetORCNN(NeuralNetNNRank):
     def predict(self, X) -> np.array:
         if isinstance(X, pd.DataFrame):
             X = X.values.astype(np.float32)
+        elif isinstance(X, np.ndarray):
+            X = X.astype(np.float32)
+
         results = NeuralNet.predict(self, X=X)
 
         return self.decode_levels(results)

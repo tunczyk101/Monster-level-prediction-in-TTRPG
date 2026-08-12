@@ -29,6 +29,5 @@ if __name__ == "__main__":
         ALL_MODELS,
         y_train,
         y_test,
-        thresholds=[[0.05 * i for i in range(1, 20)], [0.05 * i for i in range(5, 16)]],
         save_files=(TRAIN_RESULT_FILE, TEST_RESULT_FILE),
     )
