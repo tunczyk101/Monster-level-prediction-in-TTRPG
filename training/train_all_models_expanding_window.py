@@ -30,5 +30,4 @@ if __name__ == "__main__":
     results_test, results_train = expanding_window_train_and_evaluate_models(
         ALL_MODELS,
         dataframes=ts_dataframes,
-        thresholds=[[0.05 * i for i in range(1, 20)], [0.05 * i for i in range(5, 16)]],
     )

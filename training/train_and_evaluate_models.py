@@ -328,11 +328,11 @@ def calculate_and_save_final_results(
 
 
 def expanding_window_train_and_evaluate_models(
-    models: list[str], dataframes: list[pd.DataFrame], thresholds: list[list[float]]
+    models: list[str], dataframes: list[pd.DataFrame]
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     all_train_results = defaultdict(list)
     all_test_results = defaultdict(list)
-    columns = get_index(thresholds=[(min(th), max(th)) for th in thresholds])
+    columns = get_index()
     X_train = dataframes[0].copy()
     y_train = X_train.pop("level").to_numpy(copy=True)
     train_books = X_train.pop("book").unique()
@@ -357,7 +357,6 @@ def expanding_window_train_and_evaluate_models(
                 X_train,
                 y_test,
                 X_test,
-                thresholds,
                 model_name=f"{model_name}_{df_number}",
                 results_dir=os.path.join(
                     EXPANDING_WINDOW_DIR, model_name, "models_predictions"
@@ -367,7 +366,6 @@ def expanding_window_train_and_evaluate_models(
             all_train_results[model_name].append(model_train_results)
             all_test_results[model_name].append(model_test_results)
 
-            columns = get_index(thresholds=[(min(th), max(th)) for th in thresholds])
             results_path = os.path.join(
                 EXPANDING_WINDOW_DIR,
                 model_name,
