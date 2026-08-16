@@ -308,19 +308,20 @@ def calculate_and_save_final_results(
     all_train_results: dict[str, list[list[float | None]]],
     columns: MultiIndex,
     models: list[str],
+    set_name: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     final_results_test = calculate_average_and_std(all_test_results, columns, models)
     final_results_train = calculate_average_and_std(all_train_results, columns, models)
     final_results_test.to_csv(
         os.path.join(
             EXPANDING_WINDOW_DIR,
-            "test_results.csv",
+            f"{set_name}_test_results.csv",
         )
     )
     final_results_train.to_csv(
         os.path.join(
             EXPANDING_WINDOW_DIR,
-            "train_results.csv",
+            f"{set_name}_train_results.csv",
         )
     )
 
@@ -328,7 +329,7 @@ def calculate_and_save_final_results(
 
 
 def expanding_window_train_and_evaluate_models(
-    models: list[str], dataframes: list[pd.DataFrame]
+    models: list[str], dataframes: list[pd.DataFrame], set_name: str = "full"
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     all_train_results = defaultdict(list)
     all_test_results = defaultdict(list)
@@ -361,6 +362,7 @@ def expanding_window_train_and_evaluate_models(
                 results_dir=os.path.join(
                     EXPANDING_WINDOW_DIR, model_name, "models_predictions"
                 ),
+                set_name=set_name,
             )
 
             all_train_results[model_name].append(model_train_results)
@@ -374,10 +376,10 @@ def expanding_window_train_and_evaluate_models(
                 os.makedirs(results_path)
 
             pd.DataFrame(data=all_train_results[model_name], columns=columns).to_csv(
-                os.path.join(results_path, "train_results.csv")
+                os.path.join(results_path, f"{set_name}_train_results.csv")
             )
             pd.DataFrame(data=all_test_results[model_name], columns=columns).to_csv(
-                os.path.join(results_path, "test_results.csv")
+                os.path.join(results_path, f"{set_name}_test_results.csv")
             )
 
         X_train = pd.concat([X_train, X_test])

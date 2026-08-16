@@ -487,8 +487,8 @@ def min_max_scale_data(df: pd.DataFrame) -> pd.DataFrame:
     min_max_df[columns] = pd.DataFrame(
         scaler.fit_transform(df[columns]), index=df.index
     )
-    min_max_df["book"] = df["book"]
-    min_max_df["level"] = df["level"]
-    min_max_df["name"] = df["name"]
+
+    const_columns = df.columns.difference(columns)
+    min_max_df[const_columns] = df[const_columns]
 
     return min_max_df

@@ -68,7 +68,6 @@ def plot_shap_values(model: RandomForestRegressor, X: pd.DataFrame):
 
 if __name__ == "__main__":
     bestiaries = pd.read_csv(os.path.join(PATH_TO_DATASET), index_col=0)
-    bestiaries = min_max_scale_data(bestiaries)
 
     X_train, X_test, y_train, y_test = split_dataframe(
         bestiaries, chronological_split=CHRONOLOGICAL_SPLIT
@@ -76,12 +75,16 @@ if __name__ == "__main__":
 
     X_train.columns = [FEATURES_NAMES_MAP[col] for col in X_train.columns]
 
+    X_train = min_max_scale_data(X_train)
+
     # there are models that require the level to be non-negative
     y_train += 1
     y_test += 1
 
     n_features = X_train.shape[1]
 
-    model = get_fitted_model(MODEL_NAME, X_train, y_train, n_features).best_estimator_
+    model = get_fitted_model(MODEL_NAME, X_train, y_train, n_features).best_estimator_[
+        "model"
+    ]
 
     plot_shap_values(model, X_train)

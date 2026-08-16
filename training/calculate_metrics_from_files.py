@@ -5,7 +5,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import pandas as pd
 
-from dataset.creating_dataset import min_max_scale_data
 from dataset.splitting_dataset import split_dataframe
 from training.constants import (
     ALL_MODELS,
@@ -21,7 +20,6 @@ warnings.simplefilter("ignore")
 
 if __name__ == "__main__":
     bestiaries = pd.read_csv(PATH_TO_DATASET, index_col=0)
-    bestiaries = min_max_scale_data(bestiaries)
 
     X_train, X_test, y_train, y_test = split_dataframe(bestiaries)
 

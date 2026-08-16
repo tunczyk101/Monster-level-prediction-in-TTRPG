@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from results_analysis_and_plots.constants import MODEL_LABEL, OTHER_PLOTS_FOLDER
-from training.constants import RESULTS_DIR, ALL_MODELS, ROUNDING
+from training.constants import RESULTS_DIR, ROUNDING, SET_COMPARISION_MODELS
 
 
 def plot_grouped_bars(
@@ -48,8 +48,6 @@ def plot_grouped_bars(
             width=single_bar_width,
             label=MODEL_LABEL[series_name],
             color=colors[i % len(colors)],
-            # edgecolor="black",               # improves readability
-            # linewidth=0.1,
         )
 
     ax.set_xticks(x)
@@ -87,5 +85,5 @@ if __name__ == "__main__":
     plot_grouped_bars(
         all_df,
         title="Set size vs results MAE macroaveraged",
-        models=ALL_MODELS,
+        models=SET_COMPARISION_MODELS,
     )

@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 import ast
 
 from results_analysis_and_plots.constants import MODEL_LABEL, OTHER_PLOTS_FOLDER
-from training.constants import EXPANDING_WINDOW_DIR, ALL_MODELS, ROUNDING
+from training.constants import EXPANDING_WINDOW_DIR, ROUNDING, SET_COMPARISION_MODELS
 
 
 def plot_grouped_bars(
@@ -105,5 +105,5 @@ if __name__ == "__main__":
     plot_grouped_bars(
         all_df,
         title="Chronological vs random MAE macroaveraged",
-        models=ALL_MODELS,
+        models=SET_COMPARISION_MODELS,
     )

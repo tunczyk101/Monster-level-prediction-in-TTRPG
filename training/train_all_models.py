@@ -7,7 +7,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 import pandas as pd  # noqa: E402
 
-from dataset.creating_dataset import min_max_scale_data  # noqa: E402
 from dataset.splitting_dataset import split_dataframe  # noqa: E402
 from training.constants import (  # noqa: E402
     ALL_MODELS,
@@ -58,7 +57,6 @@ if __name__ == "__main__":
         print(set_name)
         path_to_dataset = PATH_TO_DATASET_PATTERN.format(set_name=set_name)
         bestiaries = pd.read_csv(path_to_dataset, index_col=0)
-        bestiaries = min_max_scale_data(bestiaries)
 
         X_train, X_test, y_train, y_test = split_dataframe(
             bestiaries, chronological_split=chronological_split

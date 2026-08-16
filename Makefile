@@ -45,6 +45,17 @@ plot-sets:
 plot-splits:
 	$(RUNNER) python results_analysis_and_plots/plot_splits.py
 
+plot-all: plot-correlation-matrix \
+          plot-error-vs-train-distance \
+          plot-errors \
+          features-analysis \
+          plot-histograms \
+          plot-levels-map \
+          plot-confusion-matrix \
+          plot-levels \
+          plot-sets \
+          plot-splits
+
 train:
 	$(RUNNER) python training/train_all_models.py
 
