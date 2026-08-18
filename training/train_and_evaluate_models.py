@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import re
 from collections import defaultdict
@@ -45,6 +46,13 @@ ORDINAL_MODELS = [
     "condor",
     "or_cnn",
 ]
+
+
+@dataclass
+class InitResults:
+    train_set: pd.DataFrame
+    all_test_results: defaultdict[list]
+    all_train_results: defaultdict[list]
 
 
 def root_mean_squared_error(y_true, y_pred):
@@ -328,21 +336,79 @@ def calculate_and_save_final_results(
     return final_results_test, final_results_train
 
 
-def expanding_window_train_and_evaluate_models(
-    models: list[str], dataframes: list[pd.DataFrame], set_name: str = "full"
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _load_previous_results(
+    dataframes: list[pd.DataFrame],
+    models: list[str],
+    set_name: str,
+    starting_df_index: int,
+) -> InitResults:
+    result_df = pd.concat(dataframes[: starting_df_index + 1]).copy()
     all_train_results = defaultdict(list)
     all_test_results = defaultdict(list)
+
+    if starting_df_index > 0:
+        for model_name in models:
+            results_path = os.path.join(
+                EXPANDING_WINDOW_DIR,
+                model_name,
+            )
+            all_test_results[model_name] = (
+                pd.read_csv(
+                    os.path.join(results_path, f"{set_name}_test_results.csv"),
+                    index_col=0,
+                    header=[0, 1],
+                )
+                .loc[: starting_df_index - 1, :]
+                .values.tolist()
+            )
+            all_train_results[model_name] = (
+                pd.read_csv(
+                    os.path.join(results_path, f"{set_name}_train_results.csv"),
+                    index_col=0,
+                    header=[0, 1],
+                )
+                .loc[: starting_df_index - 1, :]
+                .values.tolist()
+            )
+            assert (
+                len(all_test_results[model_name])
+                == len(all_train_results[model_name])
+                == starting_df_index
+            )
+
+    return InitResults(
+        train_set=result_df,
+        all_test_results=all_test_results,
+        all_train_results=all_train_results,
+    )
+
+
+def expanding_window_train_and_evaluate_models(
+    models: list[str],
+    dataframes: list[pd.DataFrame],
+    set_name: str = "full",
+    starting_df_index: int = 0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     columns = get_index()
-    X_train = dataframes[0].copy()
+
+    init_results_objects = _load_previous_results(
+        dataframes, models, set_name, starting_df_index
+    )
+
+    X_train = init_results_objects.train_set
     y_train = X_train.pop("level").to_numpy(copy=True)
     train_books = X_train.pop("book").unique()
     n_features = X_train.shape[1]
 
+    all_train_results = init_results_objects.all_train_results
+    all_test_results = init_results_objects.all_test_results
+
     # there are models that require the level to be non-negative
     y_train += 1
 
-    for df_number, test in enumerate(dataframes[1:]):
+    for df_number, test in enumerate(
+        dataframes[starting_df_index + 1 :], starting_df_index
+    ):
         X_test = test.copy()
         y_test = X_test.pop("level").to_numpy() + 1
         test_books = X_test.pop("book").unique()
@@ -387,12 +453,12 @@ def expanding_window_train_and_evaluate_models(
         train_books = np.concatenate([train_books, test_books])
 
     return calculate_and_save_final_results(
-        all_test_results, all_train_results, columns, models
+        all_test_results, all_train_results, columns, models, set_name
     )
 
 
 def calculate_final_scores_from_files(
-    models: list[str],
+    models: list[str], set_name: str
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     all_test_results = defaultdict(list)
     all_train_results = defaultdict(list)
@@ -404,14 +470,14 @@ def calculate_final_scores_from_files(
             model_name,
         )
         test_results = pd.read_csv(
-            os.path.join(results_path, "test_results.csv"),
+            os.path.join(results_path, f"{set_name}_test_results.csv"),
             header=[0, 1],
             index_col=[0],
         )
         all_test_results[model_name] = test_results.to_numpy().tolist()
         all_train_results[model_name] = (
             pd.read_csv(
-                os.path.join(results_path, "train_results.csv"),
+                os.path.join(results_path, f"{set_name}_train_results.csv"),
                 header=[0, 1],
                 index_col=[0],
             )
@@ -423,5 +489,5 @@ def calculate_final_scores_from_files(
     if columns is None:
         return
     return calculate_and_save_final_results(
-        all_test_results, all_train_results, columns, models
+        all_test_results, all_train_results, columns, models, set_name
     )

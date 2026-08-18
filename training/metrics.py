@@ -80,7 +80,10 @@ def calculate_average_and_std(
                 final_results[model] += [None, None]
                 continue
             metric_results = np.array([r[i] for r in results])
-            final_results[model] += [metric_results.nanmean(), metric_results.nanstd()]
+            final_results[model] += [
+                np.nanmean(metric_results),
+                np.nanstd(metric_results),
+            ]
 
     return pd.DataFrame(
         data=list(final_results.values()),
