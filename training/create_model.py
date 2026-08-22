@@ -1,21 +1,31 @@
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
+
+import tensorflow as tf
+
+tf.config.set_visible_devices([], "GPU")
 
 import gpflow
-from lightgbm import LGBMRegressor
 import numpy as np
 import pandas as pd
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
 import torch
+from lightgbm import LGBMRegressor
 from mord import LogisticAT, LogisticIT
+from optuna import Study
+from optuna.distributions import FloatDistribution, IntDistribution
+from optuna.samplers import TPESampler
+from optuna.storages import InMemoryStorage
+from optuna_integration import OptunaSearchCV
+from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import (
     RidgeCV,
 )
-from sklearn.base import BaseEstimator
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVR
 from skorch import NeuralNet
 from spacecutter.callbacks import AscensionCallback
@@ -24,6 +34,11 @@ from torch import nn
 
 from training.constants import NUM_CLASSES, RANDOM_STATE
 from training.losses import CondorLoss, WeightedBCELoss
+from training.models.clm.losses import CumulativeLinkLoss
+from training.models.clm.models import (
+    CLMGridSearchCV,
+    get_clm_predictor,
+)
 from training.models.condor import Condor, CondorNeuralNet
 from training.models.coral_corn import (
     CORAL_MLP,
@@ -37,12 +52,7 @@ from training.models.nn_rank import NeuralNetNNRank, NNRank
 from training.models.or_cnn import ORCNN, NeuralNetORCNN
 from training.models.ordered_models import LinearOrdinalModel
 from training.models.ordered_random_forest import OrderedRandomForest
-from training.models.simple_ordinal_classification import SimpleOrdinalClassification
-from training.models.clm.losses import CumulativeLinkLoss
-from training.models.clm.models import (
-    CLMGridSearchCV,
-    get_clm_predictor,
-)
+# from training.models.simple_ordinal_classification import SimpleOrdinalClassification
 from training.score_functions import (
     clm_mean_absolute_error,
 )
@@ -141,16 +151,39 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
                 n_jobs=-1,
                 verbosity=-1,
             )
+            lgbm = create_min_max_pipeline(lgbm)
 
             hyper_params = {
-                "model__n_estimators": [100, 300, 500],
-                "model__learning_rate": [0.03, 0.05, 0.1],
-                "model__num_leaves": [7, 15, 31],
-                "model__min_child_samples": [10, 20, 40],
-                "model__max_depth": [-1, 5, 10],
+                "model__n_estimators": IntDistribution(100, 1000, log=True),
+                "model__num_leaves": IntDistribution(15, 127, log=True),
+                "model__min_child_samples": IntDistribution(5, 100),
+                "model__learning_rate": FloatDistribution(1e-2, 0.1, log=True),
+                "model__colsample_bytree": FloatDistribution(0.5, 1.0),
+                "model__reg_lambda": FloatDistribution(1e-3, 10.0, log=True),
             }
 
-            model = create_grid_search(lgbm, hyper_params)
+            study = Study(
+                study_name="LightGBM",
+                storage=InMemoryStorage(),
+                sampler=TPESampler(
+                    consider_prior=True,
+                    seed=RANDOM_STATE,
+                    multivariate=True,
+                ),
+            )
+
+            model = OptunaSearchCV(
+                estimator=lgbm,
+                param_distributions=hyper_params,
+                study=study,
+                cv=5,
+                n_trials=100,
+                scoring="neg_root_mean_squared_error",
+                random_state=RANDOM_STATE,
+                refit=True,
+                n_jobs=1,
+                verbose=1,
+            )
         case "ordered_random_forest":
             rf = OrderedRandomForest(random_state=RANDOM_STATE, n_jobs=-1)
             hyper_params = {
@@ -180,16 +213,16 @@ def create_model(classifier_name: str, n_features: int, y_train: np.ndarray):
             model = create_linear_ordinal_model("probit")
         case "linear_ordinal_model_logit":
             model = create_linear_ordinal_model("logit")
-        case "simple_or":
-            hyper_params = {
-                "model__max_features": ["sqrt", 0.3],
-                "model__n_estimators": [100, 200, 500],
-                "model__criterion": ["gini", "entropy"],
-            }
-            model = create_grid_search(
-                SimpleOrdinalClassification(),
-                hyper_params,
-            )
+        # case "simple_or":
+        #     hyper_params = {
+        #         "model__max_features": ["sqrt", 0.3],
+        #         "model__n_estimators": [100, 200, 500],
+        #         "model__criterion": ["gini", "entropy"],
+        #     }
+        #     model = create_grid_search(
+        #         SimpleOrdinalClassification(),
+        #         hyper_params,
+        #     )
         case "gpor":
             hyper_params = {
                 "model__maxiter": [100],

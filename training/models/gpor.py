@@ -1,3 +1,7 @@
+import tensorflow as tf
+
+tf.config.set_visible_devices([], "GPU")
+
 import gpflow
 import numpy as np
 import pandas as pd
@@ -5,10 +9,10 @@ from sklearn.base import BaseEstimator, RegressorMixin
 
 
 class GPOR(BaseEstimator, RegressorMixin):
-    def __init__(self, maxiter=100, kernel=gpflow.kernels.RBF()):
+    def __init__(self, maxiter=100, kernel=None):
         self.cutpoints = np.linspace(0, 22, 22)
         self.likelihood = gpflow.likelihoods.Ordinal(self.cutpoints)
-        self.kernel = kernel
+        self.kernel = kernel if kernel is not None else gpflow.kernels.RBF()
         self.maxiter = maxiter
 
     def fit(self, X, y):

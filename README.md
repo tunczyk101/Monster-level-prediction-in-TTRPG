@@ -22,7 +22,7 @@ The following commands reproduce the complete experimental pipeline, including d
 * **Chronological split** - `make train`
 * **Random split** (evaluation of selected models) - `make train -random`
 * **Expanding window** - `make train-window`
-* **Chronological split: Basic & Expanded** (evaluation of selected models) - `make train-comparision-sets`
+* **Chronological split: Basic & Expanded** (evaluation of selected models) - `make train-comparison-sets`
 
 Final evaluation results are stored as CSV files inside:`training/results`. Predictions from individual models are stored inside `training/results\models_predictions`. Expanding window results are stored inside `training/results/ts`. Detailed results for individual models are stored in `training/results/ts/{model_name}` folders.
 

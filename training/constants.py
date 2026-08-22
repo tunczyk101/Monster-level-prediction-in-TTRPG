@@ -55,7 +55,7 @@ ALL_MODELS = [
     "condor",
     "or_cnn",
 ]
-SET_COMPARISION_MODELS = [
+SET_COMPARISON_MODELS = [
     "knn",
     "linear_regression_ridge",
     "random_forest",

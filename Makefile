@@ -39,7 +39,7 @@ plot-levels:
 	$(RUNNER) python results_analysis_and_plots/plot_levels.py
 
 plot-sets:
-	$(RUNNER) python results_analysis_and_plots/plot_sets_comparision.py
+	$(RUNNER) python results_analysis_and_plots/plot_sets_comparison.py
 
 plot-splits:
 	$(RUNNER) python results_analysis_and_plots/plot_splits.py
@@ -59,11 +59,11 @@ plot-all: plot-correlation-matrix \
 train:
 	$(RUNNER) python training/train_all_models.py
 
-train-comparision-sets:
+train-comparison-sets:
 	$(RUNNER) python training/train_all_models.py --sets basic full
 
 train-random:
-	$(RUNNER) python training/train_all_models.py --random --sets_comparision
+	$(RUNNER) python training/train_all_models.py --random --sets_comparison
 
 train-window:
 	$(RUNNER) python training/train_all_models_expanding_window.py

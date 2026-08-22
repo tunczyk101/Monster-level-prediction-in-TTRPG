@@ -14,7 +14,7 @@ from training.constants import (  # noqa: E402
     PATH_TO_DATASET_PATTERN,
     RANDOM_PREFIX,
     RESULT_PATTERN,
-    SET_COMPARISION_MODELS,
+    SET_COMPARISON_MODELS,
     SET_NAME,
 )  # noqa: E402
 
@@ -36,7 +36,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--sets_comparision",
+        "--sets_comparison",
         action="store_true",
         help="Use comparison models set",
         default=False,
@@ -49,7 +49,8 @@ if __name__ == "__main__":
     args = parse_args()
 
     set_names = set(args.sets) or {SET_NAME}
-    models_to_use = SET_COMPARISION_MODELS if args.sets_comparision else ALL_MODELS
+    # models_to_use = SET_COMPARISON_MODELS if args.sets_comparison else ALL_MODELS
+    models_to_use = ["lightgbm"]
 
     chronological_split = False if args.random else CHRONOLOGICAL_SPLIT
 
