@@ -1,0 +1,60 @@
+import os
+
+
+PLOTS_FOLDER = os.path.join("results_analysis_and_plots", "plots")
+OTHER_PLOTS_FOLDER = os.path.join(PLOTS_FOLDER, "other")
+FEATURES_NAMES_MAP = {
+    "str": "STR",
+    "dex": "DEX",
+    "con": "CON",
+    "int": "INT",
+    "wis": "WIS",
+    "cha": "CHA",
+    "ac": "AC",
+    "hp": "HP",
+    "fortitude": "Fortitude",
+    "reflex": "Reflex",
+    "will": "Will",
+    "focus": "Focus",
+    "perception": "Perception",
+    "num_immunities": "No of immunities",
+    "land_speed": "Land speed",
+    "fly": "Fly speed",
+    "swim": "Sweem speed",
+    "spells_nr_lvl_1": "Spells num lvl 1",
+    "spells_nr_lvl_2": "Spells num lvl 2",
+    "spells_nr_lvl_3": "Spells num lvl 3",
+    "spells_nr_lvl_4": "Spells num lvl 4",
+    "spells_nr_lvl_5": "Spells num lvl 5",
+    "spells_nr_lvl_6": "Spells num lvl 6",
+    "spells_nr_lvl_7": "Spells num lvl 7",
+    "spells_nr_lvl_8": "Spells num lvl 8",
+    "spells_nr_lvl_9": "Spells num lvl 9",
+    "melee_max_bonus": "Max melee bonus",
+    "avg_melee_dmg": "Avg melee damage",
+    "ranged_max_bonus": "Max anged bonus",
+    "avg_ranged_dmg": "Avg ranged damage",
+    "max_spell_lvl": "Max spell lvl",
+    "spell_dc": "Spell DC",
+    "spell_attack": "Spell attack",
+}
+
+
+MODEL_LABEL = {
+    "knn": "kNN",
+    "linear_regression_ridge": "Ridge",
+    "kernel_svm": "SVM",
+    "random_forest": "Random Forest",
+    "lightgbm": "LightGBM",
+    "simple_or": "SAOC",
+    "linear_ordinal_model_logit": "ORD",
+    "logisticIT": "IT",
+    "ordered_random_forest": "ORF",
+    "gpor": "GPOR",
+    "clm": "CLM",
+    "nn_rank": "NNRank",
+    "or_cnn": "OR-CNN",
+    "coral": "CORAL",
+    "corn": "CORN",
+    "condor": "CONDOR",
+}
